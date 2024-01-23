@@ -16,7 +16,7 @@ There is also a Workflow folder containing
 
 The majority of variables are initialised in the runscript.
 
-Scripts from https://github.com/PHOTOX/photoxrepo and https://github.com/stepan-srsen/PyNEAppLES have been used in this repository
+Scripts from https://github.com/PHOTOX/photoxrepo, https://github.com/stepan-srsen/PyNEAppLES and https://github.com/crcollins/molml have been used in this repository
 
 # mol 
 Directory for calculation outputs, subdirectories are initialised by the runscript
