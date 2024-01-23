@@ -9,6 +9,8 @@ import subprocess
 
 import glob
 
+import random
+
 def geometry_to_features(geometry):
     lines = geometry.split('\n')
     atoms = [line.split()[2] for line in lines if len(line.split()) >= 5]
@@ -52,23 +54,65 @@ def train_and_predict(X_sample_trans, Y_sample, X_unknown_trans):
     model.fit(X_sample_trans, Y_sample)
     return model.predict(X_unknown_trans)
 
-def write_predictions(pred_energy, pred_tdm):
-    with open('predictions.txt', 'w') as f:
+def write_predictions(pred_energy, pred_tdm, outdir):
+    with open(f'{outdir}predictions.txt', 'w') as f:
         for energy, tdm in zip(pred_energy, pred_tdm):
             f.write(str(energy) + '\n')
             f.write(' '.join(map(str, tdm)) + '\n')
 
-def run_commands():
-    subprocess.call('../PROCESS/CalcSpectrumV2.sh ./predictions.txt 1198 1 0.03 0.005 false false false 1 ../PROCESS/ ./ cv 0.01', shell=True)
-    subprocess.call('python3 ../POSTPROCESS/postprocess.py ""', shell=True)
+def run_commands(n, pred_dir):
+    subprocess.call(f'../PROCESS/CalcSpectrumV2.sh {pred_dir} {n} 1 0.01 0.005 false false false 1 ../PROCESS/ ../../mol/KRR/ cv 0.01', shell=True)
+    subprocess.call('python3 ../POSTPROCESS/postprocess.py "../../mol/KRR/"', shell=True)
 
-X, Y, Y_energy, Y_tdm, data = [], [], [], [], {}
-X, Y, data = process_file('../../mol/Spectrum_data/Spectrum_in/acrolien_a.1-1200.n1200.s1.exc.txt', X, Y_energy, Y_tdm, data)
-print(data)
+def pick_geometries(name, nsample, random, step, seed):
+    # Define the command as a string
+    input_file = f"../../mol/{name}_movie.xyz"
+    command = f'../LAUNCH/PickGeoms.sh {input_file} ../../mol/KRR/geoms_KRR.xyz {nsample} {random} {step} {seed}'
+    # Use subprocess to run the command
+    subprocess.call(command, shell=True)
+
+def process_geoms_file(file_path):
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+    geometries = []
+    for line in lines:
+        if line.strip().isdigit():
+            # Start of a new geometry, but only if the previous geometry has data
+            if not geometries or geometries[-1][0]:
+                geometries.append(([], []))
+        else:
+            # Information of an atom in the current geometry
+            atom, *coordinates = line.split()
+            coordinates = [float(coord) for coord in coordinates]
+            geometries[-1][0].append(atom)
+            geometries[-1][1].append(coordinates)
+
+    print(len(geometries))
+    return geometries
+
+if not os.path.exists("../../mol/KRR/"):
+    os.makedirs("../../mol/KRR/")
+else:
+    files = glob.glob("../../mol/KRR/*")
+    for f in files:
+        os.remove(f)
+        
+# Create geoms.xyz file with n samples 
+n = 3000
+pick_geometries("acrolien", n, "true", 1, 1)
+# Process the geoms.xyz file
+X = process_geoms_file('../../mol/KRR/geoms_KRR.xyz')
+print(X)
+
+
+# X, Y, Y_energy, Y_tdm, data = [], [], [], [], {}
+# X, Y, data = process_file('../../mol/Spectrum_data/Spectrum_in/acrolien_a.1-1200.n1200.s1.exc.txt', X, Y_energy, Y_tdm, data)
+# print(data)
 
 X_sample, Y_sample, Y_sample_energy, Y_sample_tdm, data_sample = [], [], [], [], {}
 X_sample, Y_sample, data_sample = process_file('../../mol/Spectrum_data/Spectrum_out/out_50/acrolien.1-1200.n50.s1.exc.txt', X_sample, Y_sample_energy, Y_sample_tdm, data_sample)
-print(data_sample)
+#print(data_sample)
+print(X_sample)
 
 # get features
 X_trans, X_sample_trans, X_unknown_trans = get_features(X, X_sample, "coloumb")
@@ -79,6 +123,7 @@ predictions = train_and_predict(X_sample_trans, Y_sample, X_unknown_trans)
 pred_energy = predictions[:,0]
 pred_tdm = predictions[:,1:]
 
-write_predictions(predictions[:,0], predictions[:,1:])
+write_predictions(predictions[:,0], predictions[:,1:], "../../mol/KRR/")
 
-run_commands()
+run_commands(len(X_unknown_trans), "../../mol/KRR/predictions.txt")
+#run_commands(n)

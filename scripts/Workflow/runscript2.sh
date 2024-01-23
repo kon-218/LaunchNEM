@@ -26,31 +26,18 @@ init_method=4
 # TDDFT 6-3GLYP
 rep_method=0
 
-nsamples=(50) # 200)
-sigmas=(0.01) #  0.035 0.04 0.045 0.05)
-ncycles=100
+anneal=1
+nsamples=(150) # 200)
+sigmas=(0.01 0.03 0.05 0.07 0.1) #  0.035 0.04 0.045 0.05)
+ncycles=1000
 njobrep=28
 nstates=1
-#conf=0.95 # Comment out to not use error bars 
-lines_per_plot=2
-mine=4.8
-maxe=2.5
-
-# Ensure data output directories are clear
-
-#find ../../mol/Spectrum_data/Spectrum_in/* -maxdepth 3 -type f -delete
-#find ../../mol/Spectrum_data/Spectrum_out/* -maxdepth 3 -type f -delete
-
-rm -rf ../../mol/ORCA_out/*
-rm -rf ../../mol/ORCA_in/*
-rm -rf ../../mol/Spectrum_data/Spectrum_in/*
-#rm -rf ../../mol/Spetrum_data/Spectrum_out/*
-
-# Start LAUNCH 
+conf=0.01
+lines_per_plot=4
 
 # Pick Geometries from movie.xyz file
 echo "Picking geometries from movie"
-../LAUNCH/PickGeoms.sh ${input_file} ../../mol/geoms.xyz $nstruct $random $step 980160
+#../LAUNCH/PickGeoms.sh ${input_file} ../../mol/geoms.xyz $nstruct $random $step 980160
 echo "Geometries successfully picked."
 echo "Number of geometries: $nstruct"
 echo -e "\n"
@@ -58,19 +45,18 @@ echo -e "\n"
 # Setup ORCA inputs
 # "Usage: ./RecalcGeometries.sh name path imin imax movie program jobs nproc calcpath"
 echo "Creating ORCA input files"
-../LAUNCH/RecalcGeometries.sh ${name} $orca_in 1 0 ../../mol/geoms.xyz ORCA 1 ${nproc} ../LAUNCH ${nstates} $init_method
+#../LAUNCH/RecalcGeometries.sh ${name} $orca_in 1 0 ../../mol/geoms.xyz ORCA 1 ${nproc} ../LAUNCH ${nstates} $init_method
 echo -e "\n"
 
 # # Run ORCA caluculations
 # Creates name.output.logs in ORCA_out directory
 echo "submitting ORCA calcs to SLURM" 
-../LAUNCH/slurm_run.sh /sw/apps/orca-5.0.3/orca-install/orca $orca_in $orca_out ORCA
+#../LAUNCH/slurm_run.sh /sw/apps/orca-5.0.3/orca-install/orca $orca_in $orca_out ORCA
 echo -e "Slurm_run finsihed\n"
 
 # # Extract ORCA outputs
 # "Usage: ./ExtractStates.sh name states istart imax grep_function filesuffix [indicies]"
 # echo "Extracting data from ORCA outputs"
-
 ../PROCESS/ExtractStates.sh $name $nstates 1 $nstruct "grep_ORCAUV" "_output.log" ../PROCESS/ $orca_out ../../mol/Spectrum_data/Spectrum_in/ 0
 # echo -e "\n"
 
@@ -112,7 +98,7 @@ for nsample in ${nsamples[@]}; do
     indicies_dir=$(find ../../mol/Spectrum_data/Spectrum_out/out_$nsample/ -maxdepth 1 -type f -name "*.geoms.txt")
     echo $indicies_dir
     orca_in=../../mol/ORCA_in/annealing_$nsample
-    orca_out=../../ORCA_out/annealing_$nsample/
+    orca_out=../../../ORCA_out/annealing_$nsample/
     method=1
     ../LAUNCH/RecalcGeometries.sh ${name} $orca_in 1 0 ../../mol/geoms.xyz ORCA 1 ${nproc} ../LAUNCH ${nstates} $rep_method $indicies_dir
 
@@ -127,10 +113,8 @@ for nsample in ${nsamples[@]}; do
     orca_out=../../mol/ORCA_out/annealing_$nsample/
     ../PROCESS/ExtractStates.sh $name $nstates 1 $nstruct "grep_ORCAUV" "_output.log" ../PROCESS/ $orca_out ../../mol/Spectrum_data/Spectrum_in/annealing_${nsample}/ 0
 
-    ../PROCESS/ExtractStates.sh $name $nstates 1 $nstruct "grep_ORCAUV" "_output.log" ../PROCESS/ $orca_out ../../mol/Spectrum_data/Spectrum_out/out_${nsample}/ 1
-
     for sigma in ${sigmas[@]}; do
-	filename=$(find ../../mol/Spectrum_data/Spectrum_in -maxdepth 1 -type f -name "*.exc.txt")
+	    filename=$(find ../../mol/Spectrum_data/Spectrum_in -maxdepth 1 -type f -name "*.exc.txt")
 
         echo "sigma is $sigma"
         outdir=../../mol/Spectrum_data/Spectrum_out/out_$nsample/sigma_${sigma}/
@@ -153,7 +137,8 @@ for nsample in ${nsamples[@]}; do
         outdir=../../mol/Spectrum_data/Spectrum_out/out_$nsample/sigma_${sigma}/
         filename=$(find ../../mol/Spectrum_data/Spectrum_in/annealing_${nsample}/ -type f -name "*.exc.txt")
         echo -e "\nRecalculating rep sample spectrum and outputting\n"
-        ../PROCESS/CalcSpectrumV2.sh $filename $nsample $nstates $sigma 0.005 false false false $nproc $workdir $outdir $sigmaalg $conf 
+        echo "filename"
+        ../PROCESS/CalcSpectrumV2.sh $filename $nsample $nstates $sigma 0.005 false false false 1 $workdir $outdir $sigmaalg $conf 
 
         echo -e "\nOuput ready"
 
@@ -176,6 +161,5 @@ done
 
 echo "Spectrum build finished"
 python3 ../POSTPROCESS/post.py ../../mol/Spectrum_data/Spectrum_out/ ../../mol/Spectrum_data/Spectrum_out/ $lines_per_plot
-
 
 

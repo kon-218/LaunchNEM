@@ -22,6 +22,7 @@ line_styles = itertools.cycle(['--', '-.', ':'])
 
 # Find all .ev.cross.dat files in the directory and its subdirectories
 files = glob.glob(os.path.join(directory, '**', '*.ev.cross.dat'), recursive=True)
+print(files)
 
 # Sort files by nsample
 files.sort(key=lambda x: int(os.path.basename(x).split('.')[2][1:]))
@@ -32,6 +33,8 @@ N = len(files)
 # Get the colormap
 colourmap = colormaps.get_cmap('viridis')
 colors = (colourmap(i/N) for i in range(N))
+
+nlines_per_plot = 6
 
 # Create a new figure
 plt.figure()
@@ -45,17 +48,19 @@ for file in files:
     # Load the data from the file
     data = np.loadtxt(file)
 
-    # If this file has more samples, update max_samples and max_file
-    if data.shape[0] > max_samples:
-        max_samples = data.shape[0]
-        max_file = file # After the loop, plot the data from the file with the most samples
-        # Extract nsample from the filename
-        max_nsample_filename = os.path.basename(file)
-        max_nsample = max_nsample_filename.split('.')[2][1:]  # Assumes the format is always 'n'
+    # Extract nsample from the filename
+    filename = os.path.basename(file)
+    nsample = int(filename.split('.')[2][1:])  # Assumes the format is always 'n'
+    
+    if nsample > max_samples:
+        max_samples = nsample
+        max_file = file
+
+print(max_samples)
 
 max_data = np.loadtxt(max_file)
 color=next(colors)
-plt.plot(max_data[:, 0], max_data[:, 1], label=max_nsample, color=color)
+plt.plot(max_data[:, 0], max_data[:, 1], label=max_samples, color=color)
 
 # Initialize a counter for the number of lines plotted on the current graph
 lines_plotted = 1
@@ -65,12 +70,12 @@ for file in files:
     if file == max_file:
         continue
     # If we've already plotted 4 lines on the current graph, create a new graph
-    if lines_plotted % 4 == 0:
+    if lines_plotted % nlines_per_plot == 0:
         line_styles = itertools.cycle(['--', '-.', ':'])
         colors = (colourmap(i/N) for i in range(N))
         color = next(colors)
         plt.figure()
-        plt.plot(max_data[:, 0], max_data[:, 1], color=color, label=max_nsample)
+        plt.plot(max_data[:, 0], max_data[:, 1], color=color, label=max_samples)
         lines_plotted += 1
 
     # Load the data from the file
@@ -85,29 +90,32 @@ for file in files:
     # Extract nsample from the filename
     filename = os.path.basename(file)
     nsample = filename.split('.')[2][1:]  # Assumes the format is always 'n'
-    
+    sigma = float('.'.join(filename.split('.')[3:5])[1:])  # Assumes the format is always 's'
+    print(filename.split('.'))
     color=next(colors)
+
+    label = "sigma:"+str(sigma)+",n:"+str(nsample)
 
     if data.shape[1] > 2:
         # Plot the data with error bars
         plt.fill_between(data[:, 0], data[:, 1] - data[:, 2], data[:, 1] + data[:, 2],color=color, alpha=0.2)
 
     # Plot the data with nsample as the label and the next line style in the cycle
-    plt.plot(data[:, 0], data[:, 1], label=nsample, linestyle=next(line_styles),color=color)
+    plt.plot(data[:, 0], data[:, 1], label=label, linestyle=next(line_styles),color=color)
 
     # Increment the counter
     lines_plotted += 1
 
     # If we've plotted 4 lines on the current graph, save it and reset the counter
-    if lines_plotted % 4 == 0:
+    if lines_plotted % nlines_per_plot == 0:
         # Add a legend
         plt.legend(title='nsample')
 
         # Save the figure
-        plt.savefig(f'{outdir}combined_plot_{lines_plotted // 4}.png')
+        plt.savefig(f'{outdir}combined_plot_{lines_plotted // nlines_per_plot}.png')
 
 # If there are less than 4 lines on the last graph, save it
-if lines_plotted % 4 != 0:
+if lines_plotted % nlines_per_plot != 0:
     # Add a legend
     plt.legend(title='nsample')
 
