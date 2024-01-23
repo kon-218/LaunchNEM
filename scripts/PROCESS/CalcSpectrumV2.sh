@@ -29,6 +29,7 @@ workdir=${10} #../PROCESS/	# working directory for the spectrum calculation
 outdir=${11} #../../mol/Spectrum_data/Spectrum_out/	# output directory for the spectrum calculation
 verbose=true
 sigmaalg=${12} 
+ebars=${13}
 
 nlines=$(wc -l < $input)
 nlines2=$((samples * states))
@@ -61,7 +62,7 @@ if [[ $verbose = "true" ]];then
    options=" --verbose "$options
 fi
 
-command="python ${workdir}calc_spectrum_v2.py -n $samples -N $states --sigmaalg $sigmaalg $options $input $outdir"
-#command="python calc_spectrum_v2.py -n $samples -N $states --sigmaalg cv --onesigma $options $input"
+command="python ${workdir}calc_spectrum_v2.py -n $samples -N $states -e $ebars --mine 2 --maxe 5 --sigmaalg $sigmaalg $options $input $outdir"
+#command="python calc_spectrum_v2.py -n $samples -N $states -e $ebars --sigmaalg cv --onesigma $options $input"
 echo "executing: $command"
 eval $command
