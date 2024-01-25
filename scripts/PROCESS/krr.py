@@ -60,8 +60,8 @@ def write_predictions(pred_energy, pred_tdm, outdir):
             f.write(str(energy) + '\n')
             f.write(' '.join(map(str, tdm)) + '\n')
 
-def run_commands(n, pred_dir):
-    subprocess.call(f'../PROCESS/CalcSpectrumV2.sh {pred_dir} {n} 1 0.01 0.005 false false false 1 ../PROCESS/ ../../mol/KRR/ cv 0.01', shell=True)
+def run_commands(n, nproc, pred_dir):
+    subprocess.call(f'../PROCESS/CalcSpectrumV2.sh {pred_dir} {n} 1 0.01 0.005 false false false {nproc} ../PROCESS/ ../../mol/KRR/ cv 0.01', shell=True)
     subprocess.call('python3 ../POSTPROCESS/postprocess.py "../../mol/KRR/"', shell=True)
 
 def pick_geometries(name, nsample, random, step, seed):
@@ -90,15 +90,24 @@ def process_geoms_file(file_path):
     print(len(geometries))
     return geometries
 
-if not os.path.exists("../../mol/KRR/"):
-    os.makedirs("../../mol/KRR/")
-else:
-    files = glob.glob("../../mol/KRR/*")
-    for f in files:
-        os.remove(f)
+outdir = "../../mol/KRR/"
+
+if not os.path.exists(outdir): 
+    os.makedirs(outdir) 
+else: 
+    files = glob.glob(f"{outdir}*") 
+    for f in files: 
+        if os.path.isfile(f): 
+            os.remove(f) 
+        elif os.path.isdir(f): 
+            for root, dirs, files in os.walk(f, topdown=False): 
+                for name in files: 
+                    os.remove(os.path.join(root, name)) 
+                for name in dirs: 
+                    os.rmdir(os.path.join(root, name))
         
 # Create geoms.xyz file with n samples 
-n = 3000
+n = 50000
 pick_geometries("acrolien", n, "true", 1, 1)
 # Process the geoms.xyz file
 X = process_geoms_file('../../mol/KRR/geoms_KRR.xyz')
@@ -125,5 +134,5 @@ pred_tdm = predictions[:,1:]
 
 write_predictions(predictions[:,0], predictions[:,1:], "../../mol/KRR/")
 
-run_commands(len(X_unknown_trans), "../../mol/KRR/predictions.txt")
+run_commands(len(X_unknown_trans), 6, "../../mol/KRR/predictions.txt")
 #run_commands(n)
