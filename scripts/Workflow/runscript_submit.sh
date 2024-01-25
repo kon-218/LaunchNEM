@@ -18,15 +18,7 @@ which orca
 
 echo "running runscript"
 
-# Ensure data output directories are clear
-
-#find ../../mol/Spectrum_data/Spectrum_in/* -maxdepth 2 -type f -delete
-#find ../../mol/Spectrum_data/Spectrum_out/* -maxdepth 2 -type f -delete
-
-#rm -rf ../../mol/ORCA_out/*
-rm -rf ../../mol/ORCA_in/*
-
 # And finally run the job
 
-#./runscript.sh
+./runscript.sh
 

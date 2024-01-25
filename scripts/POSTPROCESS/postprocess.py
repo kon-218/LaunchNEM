@@ -5,11 +5,11 @@ import glob
 
 # Get the output directory from the command line arguments
 workdir= sys.argv[1]
-data = sys.argv[2]
+#data = sys.argv[2]
 
 # Construct the full path to the data file
-data_file = workdir+data  # replace 'data.txt' with your actual data file name
-print(data_file)
+#data_file = workdir+data  # replace 'data.txt' with your actual data file name
+#print(data_file)
 
 # Find all .dat files in the directory
 data_files = glob.glob(workdir + '*.dat')
