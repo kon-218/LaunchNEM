@@ -61,8 +61,17 @@ fi
 if [[ $verbose = "true" ]];then
    options=" --verbose "$options
 fi
+if [[ ! -z $ebars ]]; then
+   options=" -e $ebars "$options
+fi
 
-command="python ${workdir}calc_spectrum_v2.py -n $samples -N $states -e $ebars --mine 2 --maxe 5 --sigmaalg $sigmaalg $options $input $outdir"
-#command="python calc_spectrum_v2.py -n $samples -N $states -e $ebars --sigmaalg cv --onesigma $options $input"
+if $ebars; then
+    command="python ${workdir}calc_spectrum_v2.py -n $samples -N $states --sigmaalg $sigmaalg $options $input $outdir"
+else
+    command="python ${workdir}calc_spectrum_v2.py -n $samples -N $states --sigmaalg $sigmaalg $options $input $outdir"
+fi
+
+#command="python ${workdir}calc_spectrum_v2.py -n $samples -N $states -e $ebars --sigmaalg $sigmaalg $options $input $outdir"
+#command="python calc_spectrum_v2.py -n $samples -N $states --sigmaalg cv --onesigma $options $input"
 echo "executing: $command"
 eval $command

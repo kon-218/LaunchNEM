@@ -5,14 +5,6 @@ Program for spectra calculation using the reflection principle including error b
 
 @author: Stepan Srsen
 """
-# DONE
-# TODO: implement ebar options to class init functions
-# TODO: remove nsamples or nsamples
-# TODO: write script for selecting geometries from movie using indices from reduction
-# TODO: incorporate recalc_kernel to recalc_spectrum
-# TODO: unify kernel2intensity with kernel2states, added calc_kernel()
-
-
 # This program is based on a script from the PHOTOX repository (https://github.com/PHOTOX/photoxrepo, Copyright (c) 2014 PHOTOX)
 # to maintain compatibility with other tools there
 
@@ -68,6 +60,7 @@ def read_cmd(parser=None, parse=True):
     parser.add_argument('-e', '--ebars', type=float, default=0.0,
                         help='Calculate error bars / confidence intervals with given confidence from interval (0,1). '
                         + 'Alternatively, it is possible to set it to negative values for multiples of standard deviation, e.g. -2 means 2 standard deviations.')
+    # TODO: implement ebar options to class init functions
     parser.add_argument('--eassym', action='store_true',
                         help='Calculate the error bars assymetrically if possible with given algorithm.')
     parser.add_argument('--ealg', choices=['cbb', 'bootstrap', 'subsample', 'jackknife', 'sqrtn'], default='bootstrap',
@@ -76,7 +69,6 @@ def read_cmd(parser=None, parse=True):
                         help='Number of cores for parallel execution of computatinally intensive subtasks:'
                         + ' cross-validation bandwidth setting, error bars, geometry reduction.')
     parser.add_argument('outdir', help='Output directory')
-    
     if parse:
         return parser.parse_args()
     return parser
@@ -91,12 +83,10 @@ def read_cmd(parser=None, parse=True):
 # TODO: get rid of unnecessary class variables
 # TODO: number of cores from cluster environment
 # TODO: replace loops in divergence functions
-
-
+# TODO: write script for selecting geometries from movie using indices from reduction
 # TODO: solve reduction + error bars
 # TODO: solve error for error bars for big data (>=40k geoms) in parallel processing
-
-
+# TODO: remove nsamples or nsamples0
 
 def weighted_dev(values, weights, corrected=True):
     """Calculates weighted standard deviation."""
@@ -112,32 +102,9 @@ def weighted_dev(values, weights, corrected=True):
         variance /= (1-np.sum(nweights**2))
     return math.sqrt(variance)
 
-# def weighted_quantile(samples, weights, percentages, sorted=False):
-#     """Calculates weighted quantiles."""
-# # TODO: check repeating values and https://en.wikipedia.org/wiki/Percentile#The_weighted_percentile_method
-#     if isinstance(percentages, float) or isinstance(percentages, int):
-#         percentages=[percentages]
-#     if not sorted:
-#         indices = np.argsort(samples)
-#         samples = samples[indices]
-#         weights = weights[indices]
-#     cumsum = np.cumsum(weights)
-#     cumsum /= cumsum[-1]
-#     quantiles = []
-#     for percentage in percentages:
-#         index_lb = len(cumsum[cumsum<=percentage])-1
-#         if cumsum[index_lb]==percentage:
-#             quantiles.append(samples[index_lb])
-#             continue
-#         quantiles.append(samples[index_lb]*(cumsum[index_lb+1]-percentage)/(cumsum[index_lb+1]-cumsum[index_lb])
-#                          + samples[index_lb+1]*(percentage-cumsum[index_lb])/(cumsum[index_lb+1]-cumsum[index_lb]))
-#     if len(quantiles)==1:
-#         return quantiles[0]
-#     else:
-#         return quantiles
-    
 def weighted_quantile(samples, weights, percentages, sorted=False):
     """Calculates weighted quantiles."""
+# TODO: check repeating values and https://en.wikipedia.org/wiki/Percentile#The_weighted_percentile_method
     if isinstance(percentages, float) or isinstance(percentages, int):
         percentages=[percentages]
     if not sorted:
@@ -148,17 +115,13 @@ def weighted_quantile(samples, weights, percentages, sorted=False):
     cumsum /= cumsum[-1]
     quantiles = []
     for percentage in percentages:
-        indices = np.where(cumsum <= percentage)[0]
-        if len(indices) == 0:
-            quantiles.append(samples[0])
-            continue
-        index_lb = indices[-1]
-        if cumsum[index_lb] == percentage or index_lb == len(samples) - 1:
+        index_lb = len(cumsum[cumsum<=percentage])-1
+        if cumsum[index_lb]==percentage:
             quantiles.append(samples[index_lb])
             continue
         quantiles.append(samples[index_lb]*(cumsum[index_lb+1]-percentage)/(cumsum[index_lb+1]-cumsum[index_lb])
                          + samples[index_lb+1]*(percentage-cumsum[index_lb])/(cumsum[index_lb+1]-cumsum[index_lb]))
-    if len(quantiles) == 1:
+    if len(quantiles)==1:
         return quantiles[0]
     else:
         return quantiles
@@ -197,7 +160,7 @@ def silverman(samples, weights=None, robust=False):
 def cv(samples, weights=None, lowerbound=None, upperbound=None, n_jobs=-1):
     """Calculates the bandwidth by using cross validation."""
     # TODO: improve silverman's estimate by averaging over states for --onesigma
-    silverman_lcoef = 0.01
+    silverman_lcoef = 0.1
     silverman_ucoef = 1.1
     max_it = 20
     npoints = 8
@@ -267,7 +230,7 @@ def cv(samples, weights=None, lowerbound=None, upperbound=None, n_jobs=-1):
 class Spectrum:
     """Basis spectrum class for reflection principle without broadening"""
 
-    def __init__(self, nsamples, nstates, deltaE, normalize, notrans, ncores, verbose, minE, maxE, decompose, ebars, eassym, ealg):
+    def __init__(self, nsamples, nstates, deltaE, normalize, notrans, ncores, verbose, minE, maxE, decompose):
         self.trans = np.empty((nsamples, nstates, 3))
         self.intensity = []
         self.intensities = None
@@ -275,7 +238,7 @@ class Spectrum:
         self.energies = []
         self.samples = []
         self.nsamples = nsamples
-        self.nsamples = nsamples
+        self.nsamples0 = nsamples
         self.nstates = nstates
         self.normalize = normalize
         self.notrans = notrans
@@ -285,9 +248,6 @@ class Spectrum:
         self.decompose = decompose
         self.de = deltaE # in eV
         self.ncores = ncores
-        self.ebars = ebars
-        self.eassym = eassym
-        self.ealg = ealg
         self.pid = os.getpid()
 
         self.infile = None
@@ -321,7 +281,7 @@ class Spectrum:
                     if k == self.nstates:
                         k = 0
                         j += 1
-                    if j >= self.nsamples:
+                    if j >= self.nsamples0:
                         if line.strip() != "":
                             print("Error: Number of transitions in the input file is bigger than the number of samples multiplied by the number of states.")
                             sys.exit(1)
@@ -333,7 +293,7 @@ class Spectrum:
                         print("I expected excitation energy, but got:" + line)
                         sys.exit(1)
                 i += 1
-            if (i != 2*self.nsamples*self.nstates and not self.notrans) or (i != self.nsamples*self.nstates and self.notrans):
+            if (i != 2*self.nsamples0*self.nstates and not self.notrans) or (i != self.nsamples0*self.nstates and self.notrans):
                 print("Error: Number of transitions in the input file is smaller than the number of samples multiplied by the number of states.")
                 sys.exit(1)
 
@@ -375,7 +335,7 @@ class Spectrum:
         
     def indices2intensity(self, samples=None):
         if samples is None:
-            samples = np.arange(self.nsamples)
+            samples = np.arange(self.nsamples0)
         nsamples = len(samples)
         acs = self.acs/(nsamples*self.de)
         intensity = np.zeros((len(self.energies)))
@@ -387,7 +347,7 @@ class Spectrum:
     
     def indices2states(self, samples=None):
         if samples is None:
-            samples = np.arange(self.nsamples)
+            samples = np.arange(self.nsamples0)
         nsamples = len(samples)
         acs = self.acs/(nsamples*self.de)
         intensities = np.zeros((len(self.energies), self.nstates))
@@ -398,7 +358,7 @@ class Spectrum:
     
     def indices2npoints(self, samples=None):
         if samples is None:
-            samples = np.arange(self.nsamples)
+            samples = np.arange(self.nsamples0)
         npoints = 1e-6*np.ones((len(self.energies)))
         for i in samples:
             for j in range(self.nstates):
@@ -412,8 +372,6 @@ class Spectrum:
         self.intensity = self.indices2intensity(samples)
         if self.decompose:
             self.intensities = self.indices2states(samples)
-        if self.ebars:
-            self.calc_errorbars(self.ebars, self.eassym, self.ealg)
         # self.npoints = self.indices2npoints(samples) # only for sqrtn errorbars
         return self.intensity
 
@@ -470,7 +428,6 @@ class Spectrum:
         # remove sqrtn (maybe eq. to CLT?) 
         # jackknife for bias?
         algs = ['cbb', 'bootstrap', 'subsample', 'jackknife', 'sqrtn']
-        print(conf,assym,alg)
         if alg not in algs:
             print('WARNING: Unknown algorithm for error bars calculation. Skipping.')
             return False
@@ -540,9 +497,10 @@ class Spectrum:
 
         bname = os.path.basename(self.infile)
         name = bname.split(".")[0]
-        return 'absspec.' + name + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
+        return 'absspec.' + name + '.n' + str(self.nsamples) + '.'  + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
                     
     def write_spectrum(self, xunit, yunit, outdir, index=None):
+        #print(os.getcwd())
         indexstr = ''
         if index is not None:
             indexstr = '.' + str(index)
@@ -563,6 +521,7 @@ class Spectrum:
         np.savetxt(outfile, spectrum)              
 
     def writeout(self, outdir, index=None):
+        #print(os.getcwd())
         xunits = []
         xunits.append(['nm', 1239.8, 'nm'])
         xunits.append(['ev', 1.0, 'eV'])
@@ -572,7 +531,7 @@ class Spectrum:
         yunits.append(['molar', 6.022140e20 / math.log(10), 'dm^3*mol^-1*cm^-1'])
         for xunit in xunits:
             if self.notrans or self.normalize:
-                self.write_spectrum(xunit, ['arb', 1.0, 'arb.u.'],outdir, index)
+                self.write_spectrum(xunit, ['arb', 1.0, 'arb.u.'], outdir, index)
                 continue
             for yunit in yunits:
                 self.write_spectrum(xunit, yunit, outdir, index)
@@ -581,16 +540,13 @@ class SpectrumBroad(Spectrum):
     """Derived class for spectra with empirical gaussian and/or lorentzian broadening"""
 
     def __init__(self, nsamples, nstates, deltaE, normalize, notrans, ncores, verbose, minE, maxE, decompose, 
-                 sigma, onesigma, sigmaalg, tau, ebars, eassym, ealg):
-        super().__init__(nsamples, nstates, deltaE, normalize, notrans, ncores, verbose, minE, maxE, decompose, ebars, eassym, ealg)
+                 sigma, onesigma, sigmaalg, tau):
+        super().__init__(nsamples, nstates, deltaE, normalize, notrans, ncores, verbose, minE, maxE, decompose)
         self.sigma = sigma
         self.onesigma = onesigma
         self.sigmaalg = sigmaalg
         self.sigmas = None
         self.tau = tau
-        self.ebars = ebars
-        self.ealg = ealg
-        self.eassym = eassym
 
         self.dE = None
         self.dist = None
@@ -668,8 +624,8 @@ class SpectrumBroad(Spectrum):
     def acs2kernel(self, samples=None):
         if self.sigma >= 0 and self.sigmas is None:
             self.set_sigmas(samples)
-            #if self.verbose:
-                #print('sigmas', self.sigmas)
+            if self.verbose:
+                print('sigmas', self.sigmas)
         acs = self.acs
         if samples is not None:
             acs = acs[samples]
@@ -695,66 +651,37 @@ class SpectrumBroad(Spectrum):
       
         if self.tau > 0.0:
             self.taukernel = np.divide(int_tau, self.dE**2 + (self.tau**2)/4)
-    
-    def calculate_kernel(self, samples=None):     
+            
+    def kernel2intensity(self, samples=None):
+        # TODO: unify with kernel2states
+        intensity = np.zeros((len(self.energies)))
         if samples is None:
             samples = slice(None)
         if self.tau > 0.0:
             kernel = self.taukernel[:, samples, :]
-        elif self.sigmaalg == 'dev':
+            np.add(intensity, np.sum(kernel, axis=(1, 2))/kernel.shape[1], out = intensity)
+        if self.sigmaalg == 'dev':
             kernel = self.kernel[:, samples, :, :]
+            np.add(intensity, np.sum(kernel, axis=(1, 2, 3))/kernel.shape[1], out = intensity)
         elif self.sigmas is not None:
             kernel = self.kernel[:, samples, :]
-        return kernel
-
-    def kernel2intensity(self, samples=None):
-        kernel = self.calculate_kernel(samples)
-        intensity = np.zeros((len(self.energies)))
-        if self.tau > 0.0 or self.sigmas is not None:
             np.add(intensity, np.sum(kernel, axis=(1, 2))/kernel.shape[1], out = intensity)
-        elif self.sigmaalg == 'dev':
-            np.add(intensity, np.sum(kernel, axis=(1, 2, 3))/kernel.shape[1], out = intensity)
         return intensity
-
-    def kernel2states(self, samples=None):
-        kernel = self.calculate_kernel(samples)
-        intensities = np.zeros((len(self.energies), self.nstates))
-        if self.tau > 0.0 or self.sigmas is not None:
-            np.add(intensities, np.sum(kernel, axis=(1))/kernel.shape[1], out = intensities)
-        elif self.sigmaalg == 'dev':
-            np.add(intensities, np.sum(kernel, axis=(1, 3))/kernel.shape[1], out = intensities)
-        return intensities
-
-    # def kernel2intensity(self, samples=None):
-    #     # TODO: unify with kernel2states
-    #     intensity = np.zeros((len(self.energies)))
-    #     if samples is None:
-    #         samples = slice(None)
-    #     if self.tau > 0.0:
-    #         kernel = self.taukernel[:, samples, :]
-    #         np.add(intensity, np.sum(kernel, axis=(1, 2))/kernel.shape[1], out = intensity)
-    #     if self.sigmaalg == 'dev':
-    #         kernel = self.kernel[:, samples, :, :]
-    #         np.add(intensity, np.sum(kernel, axis=(1, 2, 3))/kernel.shape[1], out = intensity)
-    #     elif self.sigmas is not None:
-    #         kernel = self.kernel[:, samples, :]
-    #         np.add(intensity, np.sum(kernel, axis=(1, 2))/kernel.shape[1], out = intensity)
-    #     return intensity
     
-    # def kernel2states(self, samples):
-    #     intensities = np.zeros((len(self.energies), self.nstates))
-    #     if samples is None:
-    #         samples = slice(None)
-    #     if self.tau > 0.0:
-    #         kernel = self.taukernel[:, samples, :]
-    #         np.add(intensities, np.sum(kernel, axis=(1))/kernel.shape[1], out = intensities)
-    #     if self.sigmaalg == 'dev':
-    #         kernel = self.kernel[:, samples, :, :]
-    #         np.add(intensities, np.sum(kernel, axis=(1, 3))/kernel.shape[1], out = intensities)
-    #     elif self.sigmas is not None:
-    #         kernel = self.kernel[:, samples, :]
-    #         np.add(intensities, np.sum(kernel, axis=(1))/kernel.shape[1], out = intensities)
-    #     return intensities
+    def kernel2states(self, samples):
+        intensities = np.zeros((len(self.energies), self.nstates))
+        if samples is None:
+            samples = slice(None)
+        if self.tau > 0.0:
+            kernel = self.taukernel[:, samples, :]
+            np.add(intensities, np.sum(kernel, axis=(1))/kernel.shape[1], out = intensities)
+        if self.sigmaalg == 'dev':
+            kernel = self.kernel[:, samples, :, :]
+            np.add(intensities, np.sum(kernel, axis=(1, 3))/kernel.shape[1], out = intensities)
+        elif self.sigmas is not None:
+            kernel = self.kernel[:, samples, :]
+            np.add(intensities, np.sum(kernel, axis=(1))/kernel.shape[1], out = intensities)
+        return intensities
     
     def kernel2npoints(self, samples):
         npoints = 1e-6*np.ones((len(self.energies)))
@@ -776,25 +703,27 @@ class SpectrumBroad(Spectrum):
         self.intensity = self.kernel2intensity(samples=samples)
         if self.decompose:
             self.intensities = self.kernel2states(samples)
-        if self.ebars:
-            self.calc_errorbars(self.ebars, self.eassym, self.ealg)
         # self.npoints = self.kernel2npoints(samples) # only for sqrtn errorbars
         return self.intensity
     
-    # def recalc_kernel(self, samples=None, clear_sigmas=True):
-    #     # TODO: incorporate to recalc_spectrum
-    #     if clear_sigmas:
-    #         self.sigmas=None
-    #     self.acs2kernel(samples)
-    #     return self.recalc_spectrum()
-
-    def recalc_spectrum(self, samples=None, clear_sigmas=True):
+    def recalc_kernel(self, samples=None, clear_sigmas=True):
+        # TODO: incorporate to recalc_spectrum
         if clear_sigmas:
             self.sigmas=None
         self.acs2kernel(samples)
-        
+        return self.recalc_spectrum()
+
+    def recalc_spectrum(self, samples=None):
         self.intensity = self.kernel2intensity(samples)
         return self.intensity
+
+    def get_name(self):
+        """Defines the basename for the generated files."""
+
+        bname = os.path.basename(self.infile)
+        name = bname.split(".")[0]
+        return 'absspec.' + name + '.n' + str(self.nsamples) + '.s' + str(self.sigma) + "."  + self.time.strftime('%Y-%m-%d_%H-%M-%S')
+
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -808,22 +737,20 @@ if __name__ == "__main__":
     if options.tau > 0.0 or (options.sigma is not None and options.sigma >= 0):
         spectrum = SpectrumBroad(options.nsamples, options.nstates, options.de, options.normalize, options.notrans,
                                  options.ncores, options.verbose, options.mine, options.maxe,
-                                 options.decompose, options.sigma, options.onesigma, options.sigmaalg, options.tau,
-                                 options.ebars, options.eassym, options.ealg)
+                                 options.decompose, options.sigma, options.onesigma, options.sigmaalg, options.tau)
     else:
         spectrum = Spectrum(options.nsamples, options.nstates, options.de, options.normalize, options.notrans,
                             options.ncores, options.verbose, options.mine, options.maxe,
-                            options.decompose,options.ebars, options.eassym, options.ealg)
+                            options.decompose)
 
     spectrum.read_data(options.infile)
     if options.verbose:
         print('INFO: wall time before calc_spectrum', round(time.time()-start_time), 's')
     spectrum.calc_spectrum()
-    # if options.ebars:
-    #     if options.verbose:
-    #         print('INFO: wall time before errorbars calculation', round(time.time()-start_time), 's')
-    #     spectrum.calc_errorbars(options.ebars, options.eassym, options.ealg)
-    print(options.ebars, options.eassym, options.ealg)
+    if options.ebars:
+        if options.verbose:
+            print('INFO: wall time before errorbars calculation', round(time.time()-start_time), 's')
+        spectrum.calc_errorbars(options.ebars, options.eassym, options.ealg)
     if options.verbose:
         print('INFO: wall time before writeout', round(time.time()-start_time), 's')
     spectrum.writeout(options.outdir)
