@@ -244,7 +244,7 @@ class GeomReduction:
 
         bname = os.path.basename(self.infile)
         name = bname.split(".")[0]
-        return 'absspec.' + name + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
+        return 'absspec.' + name + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.cycles) + "." + str(self.njobs)
 
         
     def get_PDF(self, samples=None, sweights=None, h='silverman', gen_grid=False):
@@ -672,7 +672,7 @@ class GeomReduction:
         indexstr = ''
         if index is not None:
             indexstr = '.' + str(index)
-        outfile = self.outdir+self.get_name() + indexstr + '.geoms.txt'
+        outfile = self.outdir+self.get_name() + str(self.cycles) + "." + str(self.njobs) + '.geoms.txt'
         
         directory = os.path.dirname(outfile)
     

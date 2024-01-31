@@ -32,9 +32,9 @@ def get_timestamp(filename):
 directory = sys.argv[1]
 
 # The third argument will be 'outdir'
-#outdir = sys.argv[2]
+outdir = sys.argv[2]
 
-outdir = ""
+#outdir = ""
 
 # Define the directory to search
 # directory = '../../mol/Spectrum_data/Spectrum_out'
@@ -56,7 +56,7 @@ N = len(files)
 colourmap = colormaps.get_cmap('viridis')
 colors = (colourmap(i/N) for i in range(N))
 
-nlines_per_plot = int(sys.argv[2])
+nlines_per_plot = int(sys.argv[3])
 comp_plot = sys.argv[3].lower() == 'true'
 
 # Create a new figure
@@ -140,8 +140,12 @@ if comp_plot:
             # Determine the x-values where y is non-zero
             non_zero_x = data[data[:, 1] != 0, 0]
 
-            # Set the limits of the x-axis
-            plt.xlim(non_zero_x.min(), non_zero_x.max())
+            # Get the current limits
+            current_xlim = plt.xlim()
+
+            # Set the limits of the x-axis only if the new range is larger
+            if non_zero_x.max() - non_zero_x.min() > current_xlim[1] - current_xlim[0]:
+                plt.xlim(non_zero_x.min(), non_zero_x.max())
             
             # Extract nsample from the filename
             filename = os.path.basename(file)
@@ -244,6 +248,7 @@ else:
 
         # Save the figure
         plt.savefig(f'{outdir}combined_plot_{lines_plotted // 4 + 1}.png')
+
 
 
 

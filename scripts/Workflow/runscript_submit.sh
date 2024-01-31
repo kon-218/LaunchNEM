@@ -3,10 +3,10 @@
 #SBATCH --job-name=full
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=28
-#SBATCH --mem-per-cpu=3500MB
-#SBATCH --time=0:10:00
+#SBATCH --mem=100GB
+#SBATCH --time=03:00:00
 #SBATCH --partition=teach_cpu
-#SBATCH --error=%J.err 
+#SBATCH --error=%J.out 
 #SBATCH --output=%J.out
 
 # Load the module environment suitable for the job
@@ -17,8 +17,7 @@ which orca
 #module list 
 
 echo "running runscript"
-
 # And finally run the job
 
 ./runscript.sh
-
+#python3 ../POSTPROCESS/post.py ../../mol/Spectrum_data/Spectrum_out/ ../../mol/Spectrum_data/Spectrum_out/ 5

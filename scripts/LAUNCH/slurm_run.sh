@@ -16,8 +16,8 @@ which orca
 echo "running runscript"
 
 # Check if the correct number of arguments are provided
-if [ "$#" -ne 4 ]; then
-    echo "Usage: ./slurm_run.sh orca_path input_dir output_dir job_name"
+if [ "$#" -ne 5 ]; then
+    echo "Usage: ./slurm_run.sh orca_path input_dir output_dir job_name njob_splits"
     exit 1
 fi
 
@@ -28,6 +28,7 @@ orca_path=$1
 input_dir=$2
 output_dir=$3
 job_name=$4
+job_splits=$5
 
 # Ensure the output directory exists
 mkdir -p "$output_dir"
@@ -41,15 +42,8 @@ echo "$total_files total files"
 # Initialize a counter
 counter=0
 
-# Determine the number of submissions based on the total number of files
-if ((total_files > 700)); then
-    submissions=4
-elif ((total_files > 400)); then
-    submissions=2
-else
-    submissions=1
-fi
-
+submissions=$5
+echo $5
 echo "splitting over $submissions submissions"
 
 # Calculate the number of files per submission
