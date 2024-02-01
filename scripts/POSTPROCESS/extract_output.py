@@ -9,7 +9,8 @@ import numpy as np
 dir = sys.argv[1]
 
 # Get a list of all .out files in the directory
-files = glob.glob(f'{dir}*.out')
+files = glob.glob('*.out')
+print(files)
 
 info = {
     'nsamples': [],
@@ -45,6 +46,8 @@ for filename in files:
         
         if min_divergence_match:
             info['min_divergence'].append(float(min_divergence_match.group(1)))
+
+print(info)
 
 df = pd.DataFrame(info)
 
