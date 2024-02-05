@@ -7,8 +7,6 @@ import itertools
 import sys
 import datetime
 
-name = "Acrolein"
-
 # Define a function that rounds a datetime object to the nearest couple of minutes
 def round_time(dt, round_to):
     seconds = (dt - dt.min).seconds
@@ -42,8 +40,10 @@ outdir = sys.argv[2]
 # Define a list of line s
 line_styles = itertools.cycle(['--', '-.', ':'])
 
+units=sys.argv[5]
+
 # Find all .ev.cross.dat files in the directory and its subdirectories
-files = glob.glob(os.path.join(directory, '**', '*.ev.cross.dat'), recursive=True)
+files = glob.glob(os.path.join(directory, '**', f'*.{units}.cross.dat'), recursive=True)
 print(files)
 
 # Sort files by nsample
@@ -57,10 +57,32 @@ colourmap = colormaps.get_cmap('viridis')
 colors = (colourmap(i/N) for i in range(N))
 
 nlines_per_plot = int(sys.argv[3])
-comp_plot = sys.argv[3].lower() == 'true'
+comp_plot = sys.argv[4].lower() == 'true'
+name=sys.argv[6]
+try:
+    xlim_min,xlim_max = sys.argv[7].split(',')
+    xlim_min = float(xlim_min)
+    xlim_max = float(xlim_max)
+except:
+    xlim_max = None
+    xlim_min = None
 
 # Create a new figure
 plt.figure()
+plt.ylabel(r"$\sigma$ (cm$^{2}$)(molecule$^{-1}$)",fontsize=12)
+plt.xlabel(f"Wavelength ({units})", fontsize=12)
+plt.xlim(xlim_min,xlim_max)
+# Increase the size of the text on the figure
+# Increase the size of the text on the figure
+plt.rcParams['font.size'] = 12
+plt.tick_params(axis='both', which='major', labelsize=12)
+#plt.rcParams['axes.offset_text.y'] = 14
+#print(plt.rcParams.keys())
+
+# plt.rcParams['font.size'] = 14
+# plt.rcParams['axes.labelsize'] = 14
+# plt.rcParams['xtick.labelsize'] = 14
+# plt.rcParams['ytick.labelsize'] = 14
 
 print(os.getcwd())
 
@@ -84,7 +106,7 @@ for file in files:
 
 if exp_file is not None:
     max_file = exp_file
-    max_samples = "exp"
+    max_samples = "Experiment"
 
 print(max_samples)
 
@@ -114,10 +136,12 @@ if comp_plot:
     for timestamp, group in files_grouped_by_timestamp.items():
         # Create a new figure
         plt.figure()
+        plt.ylabel(r"$\sigma$ (cm$^{2}$)(molecule$^{-1}$)")
+        plt.xlabel(f"Wavelength ({units})")
         
         # Plot the 'exp' data if it exists
         if max_data is not None:
-            plt.plot(max_data[:, 0], max_data[:, 1], label='exp', color='black')
+            plt.plot(max_data[:, 0], max_data[:, 1], label='Experiment', color='black')
 
         # Loop over the files in the group
         for file in group:
@@ -130,6 +154,8 @@ if comp_plot:
                 colors = (colourmap(i/N) for i in range(N))
                 color = next(colors)
                 plt.figure()
+                plt.ylabel(r"$\sigma$ (cm$^{2}$)(molecule$^{-1}$)")
+                plt.xlabel(f"Energy ({units})")
                 if 'max_data' in locals():
                     plt.plot(max_data[:, 0], max_data[:, 1], color="black" , label=max_samples)
                 lines_plotted += 1
@@ -143,21 +169,21 @@ if comp_plot:
             # Get the current limits
             current_xlim = plt.xlim()
 
-            # Set the limits of the x-axis only if the new range is larger
-            if non_zero_x.max() - non_zero_x.min() > current_xlim[1] - current_xlim[0]:
-                plt.xlim(non_zero_x.min(), non_zero_x.max())
+            # # Set the limits of the x-axis only if the new range is larger
+            # if non_zero_x.max() - non_zero_x.min() > current_xlim[1] - current_xlim[0]:
+            #     plt.xlim(non_zero_x.min(), non_zero_x.max())
+            
+            #plt.xlim(xlim_min,xlim_max)
             
             # Extract nsample from the filename
             filename = os.path.basename(file)
             nsample = filename.split('.')[2][1:]  # Assumes the format is always 'n'
             sigma = float('.'.join(filename.split('.')[3:5])[1:])  # Assumes the format is always 's'
             
-
-            # Check if sigma is 0 and assign label accordingly
-            if sigma == 0:
-                label = "sigma:cv,n:"+str(nsample)
+            if int(nsample) > 500:
+                label = "Exploratory sample"
             else:
-                label = "sigma:"+str(sigma)+",n:"+str(nsample)
+                label = "n:"+str(nsample)
 
             if data.shape[1] > 2:
                 # Plot the data with error bars
@@ -197,6 +223,8 @@ else:
             colors = (colourmap(i/N) for i in range(N))
             color = next(colors)
             plt.figure()
+            plt.ylabel(r"$\sigma$ (cm$^{2}$)(molecule$^{-1}$)")
+            plt.xlabel(f"Energy ({units})")
             plt.plot(max_data[:, 0], max_data[:, 1], color=color, label=max_samples)
             lines_plotted += 1
 
@@ -206,9 +234,10 @@ else:
         # Determine the x-values where y is non-zero
         non_zero_x = data[data[:, 1] != 0, 0]
 
-        # Set the limits of the x-axis
-        plt.xlim(non_zero_x.min(), non_zero_x.max())
-        
+        # # Set the limits of the x-axis
+        ##plt.xlim(non_zero_x.min(), non_zero_x.max())
+        #plt.xlim(xlim_min,xlim_max)
+        #plt.ylim(0,5e-16)
         # Extract nsample from the filename
         filename = os.path.basename(file)
         nsample = filename.split('.')[2][1:]  # Assumes the format is always 'n'
@@ -216,10 +245,10 @@ else:
         print(filename.split('.'))
 
         # Check if sigma is 0 and assign label accordingly
-        if sigma == 0:
-            label = "sigma:cv, n:"+str(nsample)
+        if int(nsample) > 500:
+            label = "Exploratory sample"
         else:
-            label = "sigma:"+str(sigma)+", n:"+str(nsample)
+            label = "n:"+str(nsample)
 
         color=next(colors)
 
@@ -235,16 +264,37 @@ else:
 
         # If we've plotted 4 lines on the current graph, save it and reset the counter
         if lines_plotted % nlines_per_plot == 0:
-            # Add a legend
-            plt.legend(title=f'{name} rep sample')
+            # Get the legend handles and labels
+            handles, labels = plt.gca().get_legend_handles_labels()
+
+            # Create a dictionary to store the labels and their corresponding handles
+            legend_dict = dict(zip(labels, handles))
+
+            # Sort the labels so that the ones starting with 'Exp' come first
+            labels.sort(key=lambda x: not x.startswith('Exp'))
+
+            # Create the legend with the sorted labels and their corresponding handles
+            plt.legend([legend_dict[label] for label in labels], labels)
+            # # Add a legend
+            # plt.legend(title=f'{name} rep sample')
 
             # Save the figure
             plt.savefig(f'{outdir}combined_plot_{lines_plotted // nlines_per_plot}.png')
 
     # If there are less than 4 lines on the last graph, save it
     if lines_plotted % nlines_per_plot != 0:
-        # Add a legend
-        plt.legend(title=f'{name} rep sample')
+        # Get the legend handles and labels
+        handles, labels = plt.gca().get_legend_handles_labels()     
+        # Create a dictionary to store the labels and their corresponding handles
+        legend_dict = dict(zip(labels, handles))
+
+        # Sort the labels so that the ones starting with 'Exp' come first
+        labels.sort(key=lambda x: not x.startswith('Exp'))
+
+        # Create the legend with the sorted labels and their corresponding handles
+        plt.legend([legend_dict[label] for label in labels], labels)
+        # # Add a legend
+        # plt.legend(title=f'{name} rep sample')
 
         # Save the figure
         plt.savefig(f'{outdir}combined_plot_{lines_plotted // 4 + 1}.png')

@@ -128,7 +128,11 @@ for ((i=1;i<=nsample;i++)) {
       nrand=`head -$i irans.dat |tail -1`
       offset=$(expr $nrand \* $natom2)
    elif [[ $random -eq 0 ]];then
-      let offset=offset+natom2*step
+      if [[ $i -eq 1 ]];then
+         offset=0
+      else
+         let offset=offset+natom2*step
+      fi
    fi
 
    if [[ -z $cut ]];then
@@ -141,4 +145,3 @@ for ((i=1;i<=nsample;i++)) {
 }
 echo ""
 echo "Finished successfully."
-
