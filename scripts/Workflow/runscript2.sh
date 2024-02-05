@@ -1,6 +1,7 @@
 #!/bin/bash
 
 shopt -s extglob
+source config.sh
 
 # Script for running full NEM workflow
 # Structure of the workflow:
@@ -21,56 +22,68 @@ else
     runid=$(( $(echo "$existing_runids" | tail -n 1) + 1 ))
 fi
 
-#runid=2
+# Define paths
+base_dir="../../mol_${runid}"
+spectrum_data_dir="${base_dir}/Spectrum_data"
+orca_in_dir="${base_dir}/ORCA_in"
+orca_out_dir="${base_dir}/ORCA_out"
 
-mkdir -p ../../mol_${runid}/
-
-# Create the directories
-mkdir -p ../../mol_${runid}/ORCA_out/
-mkdir -p ../../mol_${runid}/ORCA_in/
-mkdir -p ../../mol_${runid}/Spectrum_data/Spectrum_in/
-mkdir -p ../../mol_${runid}/Spectrum_data/Spectrum_out/
-
-name="acrolein"
-nstruct_movie=100000
-nstruct=1200
-step=$((nstruct_movie/$nstruct))
-nproc=28
 input_file=../../movies/${name}_movie.xyz
 orca_in=../../mol_${runid}/ORCA_in/
 orca_out=../../mol_${runid}/ORCA_out/
-random=1
-nrep_split=6
 
-# Available methods, indexed from 1
-# TDDFT 6-31GLYP, TDDFT cc, ADC3, HF, Zindo HF3c
-init_method=0
-rep_method=0
-single_point=1
+# Functions
+function init_directories() {
+    mkdir -p ../../mol_${runid}/ORCA_out/
+    mkdir -p ../../mol_${runid}/ORCA_in/
+    mkdir -p ../../mol_${runid}/Spectrum_data/Spectrum_in/
+    mkdir -p ../../mol_${runid}/Spectrum_data/Spectrum_out/
+}
 
-nsamples=() # 200)
-sigmas=(0) #  0.035 0.04 0.045 0.05)
-ncycles_values=(100)
-nrep_values=(28)
-nstates=1
-#conf=0.95 # Comment out to not use error bars 
-lines_per_plot=5
-#mine=4.8
-#maxe=2.5
+# Function to create and clean directory
+create_and_clean_dir() {
+    local dir=$1
+    mkdir -p "$dir"
+    if [ "$(ls -A "$dir")" ]; then
+        rm -rf "$dir"/*
+    fi
+}
 
-equidistant=1
-# runid=5
-# Ensure data output directories are clear
+# Function to process directories
+process_annealing_directories() {
+    local nsample=$1
+    local ncycles=$2
+    local nrep=$3
 
-#find ../../mol/Spectrum_data/Spectrum_in/* -maxdepth 3 -type f -delete
-#find ../../mol/Spectrum_data/Spectrum_out/* -maxdepth 3 -type f -delete
+    local dir2="${spectrum_data_dir}/Spectrum_in/annealing_n${nsample}_c${ncycles}_nr${nrep}/"
+    create_and_clean_dir "$dir2"
 
-#rm -rf ../../mol_${runid}/ORCA_out/*
-#rm -rf ../../mol_${runid}/ORCA_in/*
-#rm -rf ../../mol_${runid}/Spectrum_data/Spectrum_in/*
-#rm -rf ../../mol_${runid}/Spetrum_data/Spectrum_out/*
+    local dir3="${orca_in_dir}/annealing_n${nsample}_c${ncycles}_nr${nrep}/"
+    create_and_clean_dir "$dir3"
 
-# Start LAUNCH 
+    local dir4="${orca_out_dir}/annealing_n${nsample}_c${ncycles}_nr${nrep}/"
+    create_and_clean_dir "$dir4"
+}
+
+# Function to process equidistant directories
+process_equidistant_directories() {
+    local nsample=$1
+
+    local dir5="${orca_out_dir}/equidist_${nsample}/"
+    create_and_clean_dir "$dir5"
+
+    local dir6="${orca_in_dir}/equidist_${nsample}/"
+    create_and_clean_dir "$dir6"
+
+    local dir7="${spectrum_data_dir}/Spectrum_in/equidist_${nsample}/"
+    create_and_clean_dir "$dir7"
+
+    local dir8="${spectrum_data_dir}/Spectrum_out/equidistant_${nsample}/"
+    create_and_clean_dir "$dir8"
+}
+
+init_directories
+
 # Launch single point calc if specified otherwise continue
 if [[ $single_point -eq 1 ]]; then
     # Pick opt geometry 
@@ -96,9 +109,8 @@ if [[ $single_point -eq 1 ]]; then
     echo "Building single point spectrum"
     filename=$(find ../../mol_${runid}/Spectrum_data/Spectrum_in/single_point/ -maxdepth 1 -type f -name "*.exc.txt")
     outdir=../../mol_${runid}/Spectrum_data/Spectrum_out/
-    sigmaalg=cv
     echo $filename $nstruct $nstates
-    ../PROCESS/CalcSpectrumV2.sh $filename $nstruct $nstates 0.05 0.005 false false false $nproc $workdir $outdir $sigmaalg $conf
+    ../PROCESS/CalcSpectrumV2.sh $filename 1 $nstates 0.05 0.005 false false false $nproc $workdir $outdir $sigmaalg $conf
 
     echo "Specrtrum output ready"
     python3 ../POSTPROCESS/postprocess.py ../../mol_${runid}/Spectrum_data/Spectrum_out/
@@ -149,24 +161,20 @@ for nsample in ${nsamples[@]}; do
     echo "Running rep sample for $nsample"
 
     outdir=../../mol_${runid}/Spectrum_data/Spectrum_out/out_${nsample}/
-    mkdir -p $outdir
     filename=$(find ../../mol_${runid}/Spectrum_data/Spectrum_in/ -maxdepth 1 -type f -name "*.exc.txt")
 
-
-    if [ "$(ls -A $outdir)" ]; then
-            rm -rf $outdir/*
-    fi
+    create_and_clean_dir $outdir
 
     # Loop over the values of ncycles
     for ncycles in ${ncycles_values[@]}; do
         # Loop over the values of nrep
         for nrep in ${nrep_values[@]}; do
-	    new_outdir=../../mol_${runid}/Spectrum_data/Spectrum_out/out_$nsample/rep_out_${ncycles}_${nrep}/
-            mkdir -p $new_outdir
+	        new_outdir=../../mol_${runid}/Spectrum_data/Spectrum_out/out_$nsample/rep_out_${ncycles}_${nrep}/
+            create_and_clean_dir $new_outdir
 
             # Measure the time taken to run the script
             start_time=$(date +%s)
-            ../PROCESS/repre_sample_2D.py -n $nstruct -N $nstates -S $nsample -c $ncycles -j $nproc -J $nrep -w --verbose --outdir $outdir --pdfcomp KLdiv $filename 
+            ../PROCESS/repre_sample_2D.py -n $nstruct -N $nstates -S $nsample -c $ncycles -j $nproc -J $nrep -w --verbose --outdir $new_outdir --pdfcomp KLdiv $filename 
             end_time=$(date +%s)
             time_taken=$((end_time - start_time))
             echo "Time taken for nsample=$nsample ncycles=$ncycles and nrep=$nrep: $time_taken seconds"
@@ -178,7 +186,7 @@ for nsample in ${nsamples[@]}; do
             # Create new output dir for this simulation
             echo "moved files to $new_outdir"
             # Move all files and folders which are not *.out, *.sh, or $name* to this new dir 
-            mv !(*.out|*.sh|$name*) $new_outdir
+            #mv !(*.out|*.sh|$name*) $new_outdir
          done
      done
 
@@ -200,57 +208,11 @@ for nsample in ${nsamples[@]}; do
 
         echo "Cycles: $ncycles, Repetitions: $nrep"
         
-        dir2=../../mol_${runid}/Spectrum_data/Spectrum_in/annealing_n${nsample}_c${ncycles}_nr${nrep}/	
-        mkdir -p $dir2
-        if [ "$(ls -A $dir2)" ]; then
-            rm -rf $dir2/*
-        fi
-
-        dir3=../../mol_${runid}/ORCA_in/annealing_n${nsample}_c${ncycles}_nr${nrep}/
-        mkdir -p $dir3
-        if [ "$(ls -A $dir3)" ]; then
-            rm -rf $dir3/*
-        fi
-
-        dir4=../../mol_${runid}/ORCA_out/annealing_n${nsample}_c${ncycles}_nr${nrep}/
-        mkdir -p $dir4
-        if [ "$(ls -A $dir4)" ]; then
-            rm -rf $dir4/*
-        fi
-	
-	dir5=../../mol_$runid/ORCA_out/equidist_$nsample/
-    	mkdir -p $dir5
-    	if [ "$(ls -A $dir4)" ]; then
-   	     rm -rf $dir5/*
-   	fi
-
-    	dir6=../../mol_$runid/ORCA_in/equidist_$nsample/
-    	mkdir -p $dir6
-    	if [ "$(ls -A $dir4)" ]; then
-        	rm -rf $dir6/*
-    	fi
-
-    	dir7=../../mol_$runid/Spectrum_data/Spectrum_in/equidist_$nsample/
-    	mkdir -p $dir7
-    	if [ "$(ls -A $dir4)" ]; then
-    	    rm -rf $dir7/*
-    	fi
-	
-	dir8=../../mol_$runid/Spectrum_data/Spectrum_out/equidist_$nsample
-	mkdir -p $dir8
-	if [ "$(ls -A $dir4)" ]; then
-	    rm -rf $dir8/*
-    	fi
-
-	dir9=../../mol_$runid/Spectrum_data/Spectrum_in/equidist_$nsample
-        mkdir -p $dir9
-        if [ "$(ls -A $dir9)" ]; then
-            rm -rf $dir9/*
-        fi
-
-
+        process_annealing_directories $nsample $ncycles $nrep
+        
     	if [ "$equidistant" == 1 ]; then
         	echo -e "\nSampling equidistant geometries and calculating spectrum\n"
+            process_equidistant_directories $nsample
 
         	step=$((nstruct/(nsample+1)))
         	echo "sampling with fixed offset $step"
@@ -265,9 +227,9 @@ for nsample in ${nsamples[@]}; do
         	echo "Creating ORCA input files for equidistant geometries"
         	orca_in=../../mol_$runid/ORCA_in/equidist_$nsample
         	#orca_out=../../mol_$runid/ORCA_out/equidist_$nsample/
-		orca_out=../../ORCA_out/equidist_$nsample/
+		    orca_out=../../ORCA_out/equidist_$nsample/
        		../LAUNCH/RecalcGeometries.sh ${name} $orca_in 1 0 ../../mol_$runid/geoms_equidist.xyz ORCA 1 ${nproc} ../LAUNCH ${nstates} $init_method
-		echo -e "\n"
+		    echo -e "\n"
 	
         	# Run ORCA calculations for equidistant geometries
         	echo "Submitting ORCA calculations for equidistant geometries to SLURM"
@@ -275,16 +237,16 @@ for nsample in ${nsamples[@]}; do
         	../LAUNCH/slurm_run.sh /sw/apps/orca-5.0.3/orca-install/orca $orca_in $orca_out ORCA 1
         	echo -e "Slurm_run finished\n"
 		
-		orca_out=../../mol_$runid/ORCA_out/equidist_$nsample/
+		    orca_out=../../mol_$runid/ORCA_out/equidist_$nsample/
         	# Extract results for equidistant geometries
         	echo "Extracting data from ORCA outputs for equidistant geometries"
         	../PROCESS/ExtractStates.sh $name $nstates 1 $nstruct "grep_ORCAUV" "_output.log" ../PROCESS/ $orca_out ../../mol_$runid/Spectrum_data/Spectrum_in/equidist_$nsample/ 0
 		
-		filename=$(find ../../mol_${runid}/Spectrum_data/Spectrum_in/equidist_$nsample/ -maxdepth 1 -type f -name "*.exc.txt")
-		../PROCESS/repre_sample_2D.py -n $((nsample+1)) -N $nstates -S $nsample -c 2 -j $nproc -J 1 -w --verbose --outdir $outdir --pdfcomp KLdiv $filename
+		    filename=$(find ../../mol_${runid}/Spectrum_data/Spectrum_in/equidist_$nsample/ -maxdepth 1 -type f -name "*.exc.txt")
+		    ../PROCESS/repre_sample_2D.py -n $((nsample+1)) -N $nstates -S $nsample -c 2 -j $nproc -J 1 -w --verbose --outdir $outdir --pdfcomp KLdiv $filename
 		
-		new_outdir=../../mol_$runid/Spectrum_data/Spectrum_out/equidist_$nsample/
-		# Create new output dir for this simulation
+		    new_outdir=../../mol_$runid/Spectrum_data/Spectrum_out/equidist_$nsample/
+		    # Create new output dir for this simulation
 	        echo "moved files to $new_outdir"
 	        # Move all files and folders which are not *.out, *.sh, or $name* to this new dir
 	        mv !(*.out|*.sh|$name*) $new_outdir
@@ -317,7 +279,7 @@ for nsample in ${nsamples[@]}; do
     	fi
         
         # Recalc using rep sample geometries
-	echo "Recalculating using rep sample geometries"
+	    echo "Recalculating using rep sample geometries"
         echo -e "\nRecreating ORCA input files at higher level of theory\n"
         echo $indicies_dir
         orca_in=../../mol_${runid}/ORCA_in/annealing_n${nsample}_c${ncycles}_nr${nrep}
@@ -366,6 +328,7 @@ done
 
 echo "Spectrum build finished"
 python3 ../POSTPROCESS/post.py ../../mol_${runid}/Spectrum_data/Spectrum_out/ ../../mol_${runid}/Spectrum_data/Spectrum_out/ $lines_per_plot True
+
 
 
 

@@ -38,8 +38,7 @@ outdir = sys.argv[2]
 # directory = '../../mol/Spectrum_data/Spectrum_out'
 
 # Define a list of line s
-line_styles = itertools.cycle(['--', '-.', ':'])
-
+line_styles = itertools.cycle(['-'])
 units=sys.argv[5]
 
 # Find all .ev.cross.dat files in the directory and its subdirectories
@@ -51,10 +50,10 @@ files.sort(key=lambda x: int(os.path.basename(x).split('.')[2][1:]))
 
 # Define a list of colors
 #colors = itertools.cycle(['b', 'g', 'r', 'c', 'm', 'y', 'k'])
-N = len(files)
+N = 15
 # Get the colormap
 colourmap = colormaps.get_cmap('viridis')
-colors = (colourmap(i/N) for i in range(N))
+colors = (colourmap(i/N*3+0.15) for i in range(N))
 
 nlines_per_plot = int(sys.argv[3])
 comp_plot = sys.argv[4].lower() == 'true'
@@ -66,6 +65,8 @@ try:
 except:
     xlim_max = None
     xlim_min = None
+
+nsample_list = [int(n) for n in sys.argv[8].split(',')]
 
 # Create a new figure
 plt.figure()
@@ -97,7 +98,6 @@ for file in files:
     # Extract nsample from the filename
     filename = os.path.basename(file)
     nsample = int(filename.split('.')[2][1:])  # Assumes the format is always 'n'
-        
     if filename.startswith('exp.'):
         exp_file = file
     elif nsample > max_samples:
@@ -112,7 +112,7 @@ print(max_samples)
 
 max_data = np.loadtxt(max_file)
 color=next(colors)
-plt.plot(max_data[:, 0], max_data[:, 1], label=max_samples, color=color)
+plt.plot(max_data[:, 0], max_data[:, 1], label=max_samples, color="purple")
 
 # Group files by timestamp if comp_plot is True
 if comp_plot:
@@ -157,7 +157,7 @@ if comp_plot:
                 plt.ylabel(r"$\sigma$ (cm$^{2}$)(molecule$^{-1}$)")
                 plt.xlabel(f"Energy ({units})")
                 if 'max_data' in locals():
-                    plt.plot(max_data[:, 0], max_data[:, 1], color="black" , label=max_samples)
+                    plt.plot(max_data[:, 0], max_data[:, 1], color="purple" , label=max_samples)
                 lines_plotted += 1
 
             # Load the data from the file
@@ -182,6 +182,15 @@ if comp_plot:
             
             if int(nsample) > 500:
                 label = "Exploratory sample"
+                color="violet"
+            elif int(nsample) == 1:
+                #assume single point 
+                label = "Opt. Geom."
+                color="blue"
+            elif int(nsample) == 0:
+                #full sample high res qm
+                label = "Full sample"
+                color="orange"
             else:
                 label = "n:"+str(nsample)
 
@@ -217,6 +226,7 @@ else:
     for file in files:
         if file == max_file:
             continue
+        
         # If we've already plotted 4 lines on the current graph, create a new graph
         if lines_plotted % nlines_per_plot == 0:
             line_styles = itertools.cycle(['--', '-.', ':'])
@@ -243,14 +253,29 @@ else:
         nsample = filename.split('.')[2][1:]  # Assumes the format is always 'n'
         sigma = float('.'.join(filename.split('.')[3:5])[1:])  # Assumes the format is always 's'
         print(filename.split('.'))
+        print(nsample_list)
+        # Check if nsample is in nsample_list
 
+        if int(nsample) not in nsample_list:
+            continue  # Skip this file if its nsample is not in nsample_list
+        
         # Check if sigma is 0 and assign label accordingly
         if int(nsample) > 500:
             label = "Exploratory sample"
+            color="sienna"
+        elif int(nsample) == 1:
+            #assume single point 
+            label = "Opt. Geom."
+            color="navy"
+        elif int(nsample) == 0:
+            #full sample high res qm
+            label = "Full sample"
+            color="darkgreen"
         else:
             label = "n:"+str(nsample)
+            color=next(colors)
 
-        color=next(colors)
+        
 
         if data.shape[1] > 2:
             # Plot the data with error bars
@@ -274,7 +299,7 @@ else:
             labels.sort(key=lambda x: not x.startswith('Exp'))
 
             # Create the legend with the sorted labels and their corresponding handles
-            plt.legend([legend_dict[label] for label in labels], labels)
+            plt.legend([legend_dict[label] for label in labels], labels,title=f'{name} rep. sample')
             # # Add a legend
             # plt.legend(title=f'{name} rep sample')
 
@@ -292,7 +317,7 @@ else:
         labels.sort(key=lambda x: not x.startswith('Exp'))
 
         # Create the legend with the sorted labels and their corresponding handles
-        plt.legend([legend_dict[label] for label in labels], labels)
+        plt.legend([legend_dict[label] for label in labels], labels,title=f'{name} rep. sample')
         # # Add a legend
         # plt.legend(title=f'{name} rep sample')
 
