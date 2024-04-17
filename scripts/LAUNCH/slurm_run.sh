@@ -9,19 +9,15 @@
 # Load the module environment suitable for the job
 module load apps/orca/5.0.3
 
-which orca
-
 #module list
 
-echo "running runscript"
+echo "Running ORCA calculations"
 
 # Check if the correct number of arguments are provided
 if [ "$#" -ne 5 ]; then
     echo "Usage: ./slurm_run.sh orca_path input_dir output_dir job_name njob_splits"
     exit 1
 fi
-
-echo "the working directory is $(pwd)"
 
 # Assign each argument to a variable
 orca_path=$1
@@ -43,12 +39,10 @@ echo "$total_files total files"
 counter=0
 
 submissions=$5
-echo $5
 echo "splitting over $submissions submissions"
 
 # Calculate the number of files per submission
 files_per_submission=$((total_files / submissions))
-echo "Working directory slurm run $(pwd)"
 
 # Loop over ORCA input files and submit jobs
 for input_file in *.com; do
@@ -63,13 +57,13 @@ for input_file in *.com; do
 
     # If the counter has reached the number of files per submission, wait for all jobs to finish
     if ((counter % files_per_submission == 0)); then
-        echo "Waiting for $files_per_submission submissions to complete"
+        echo "waiting for $files_per_submission submissions to complete"
 	wait
     fi
 done
 
 # Wait for any remaining ORCA jobs to finish
-echo "Waiting for last submission"
+echo "waiting for last submission"
 wait
 
 echo "All ORCA jobs have completed."
