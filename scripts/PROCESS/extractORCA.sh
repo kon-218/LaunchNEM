@@ -26,7 +26,8 @@ function grep_ORCAUV {
    if [[ "$?" -ne "0" ]];then
       return 1
    fi
-  
+
+    # Find key line and extract the information
    if [[ $anneal -eq 1 ]];then
       grep -A$nstate4 "ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS"  $in | tail -$numstates | awk -v filename="$in" '{print $2*0.000123981; print $6,$7,$8; print filename}' >> $out
    elif [[ $anneal -eq 0 ]];then
