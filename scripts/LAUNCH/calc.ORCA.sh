@@ -9,7 +9,7 @@ geometry=$1
 output=$2
 nproc=$3
 nstates=$4
-method=$5              # number of processors
+method=$5              
 natom=$(head -1 $1 | awk '{print $1}')
 nproc=1
 # Modify to your needs
