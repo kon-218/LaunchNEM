@@ -20,6 +20,7 @@ Requirements:
 - ORCA QC software
 - Access to HPC (QC calculations are costly for personal machines)
 
+Most of the configuration is done in the config file, however, to use different QC methods, they need to be added to calc.ORCA.sh. A simplified Hartree-Fock semi-empirical method, and TDDFT B3LYP 6-311*G are given as an example  
 Scripts from https://github.com/PHOTOX/photoxrepo, https://github.com/stepan-srsen/PyNEAppLES have been used in this repository
 
 # mol 
