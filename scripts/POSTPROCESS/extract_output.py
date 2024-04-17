@@ -6,12 +6,15 @@ import matplotlib.pyplot as plt
 import sys 
 import numpy as np
 
+# A script for extracting the output lines of a rep. sampling workflow
+
 dir = sys.argv[1]
 
 # Get a list of all .out files in the directory
 files = glob.glob('*.out')
 print(files)
 
+# Dictionary of variables we want to find
 info = {
     'nsamples': [],
     'ncycles': [],
@@ -20,6 +23,7 @@ info = {
     'min_divergence': []
 }
 
+# Regex expression for each variable
 nsamples_pattern = re.compile(r'nsample=(\d+)')
 ncycles_pattern = re.compile(r'ncycles=(\d+)')
 nrep_pattern = re.compile(r'nrep=(\d+)')
@@ -64,17 +68,20 @@ for filename in files:
             # Reset matches for next run
             nsamples_match = None
             min_divergence_match = None
-print(info)
+
 
 df = pd.DataFrame(info)
+print(df)
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-sc = ax.scatter(df['nsamples'], df['ncycles'], df['time_taken'], c=df['min_divergence'], cmap='Greens_r', s=10)
+# example plotting
 
-ax.set_xlabel('Number of Samples')
-ax.set_ylabel('Number of Cycles')
-ax.set_zlabel('Time taken (s)')
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+# sc = ax.scatter(df['nsamples'], df['ncycles'], df['time_taken'], c=df['min_divergence'], cmap='Greens_r', s=10)
 
-plt.colorbar(sc)
-plt.show()
+# ax.set_xlabel('Number of Samples')
+# ax.set_ylabel('Number of Cycles')
+# ax.set_zlabel('Time taken (s)')
+
+# plt.colorbar(sc)
+# plt.show()

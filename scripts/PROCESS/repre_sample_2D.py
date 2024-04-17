@@ -49,7 +49,8 @@ def read_cmd():
     parser.add_argument('--intweights', action='store_true',
                         help='Activate optimization of integer weights for individual geometries (instead of 0/1).')
     parser.add_argument('--outdir', help='Output directory.')
-
+    parser.add_argument('--xlim', help='x limits, False by default')
+    parser.add_argument('--ylim', help='y limits, False by default')
     return parser.parse_args()
 
 class PDFDiv:
@@ -168,7 +169,7 @@ class PDFDiv:
 class GeomReduction:
     """Main class for the optimization of representative sample."""
 
-    def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, weighted, pdfcomp, intweights, verbose, outdir, dim1=False):
+    def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, weighted, pdfcomp, intweights, verbose, outdir, xlim=False, ylim=False, dim1=False):
         self.nsamples = nsamples
         # if nstates > 1:
         #     print("ERROR: implemented only for 1 state!")
@@ -188,10 +189,12 @@ class GeomReduction:
         self.weighted = weighted
         self.calc_diff = getattr(PDFDiv, pdfcomp)
         self.intweights = intweights
-        self.dim1 = dim1
-        self.pid = os.getpid()
-        self.outdir = outdir
-        #print(self.outdir)
+        self.dim1=dim1
+        print(self.dim1)
+        self.xlim=xlim
+        self.ylim=ylim
+        self.outdir=outdir
+
             
     def read_data(self, infile):
         """Reads and parses input data from given input file."""
@@ -434,7 +437,7 @@ class GeomReduction:
             h, m = divmod(m, 60)
             print('Ti', ti, 'Tf', tf)
             print('Li', itmin, 'Lf', itmax)
-            toprint = str(self.pid)+":\tInitial temperature = "+str(ti)
+            toprint = ":\tInitial temperature = "+str(ti)
             toprint += ", Final temperature = "+str(tf)+", Temperature coefficient = "+str(tc)
             toprint += "\n\tMarkov Chain Length coefficient = "+str(itc)+", Initial D-min = "+str(d)
             toprint += "\n\tEstimated run time: "+str(h)+" hours "+str(m)+" minutes "+str(s)+" seconds"
@@ -585,7 +588,7 @@ class GeomReduction:
         np.savetxt( name+'.exc.txt', self.exc[self.subsamples])
         np.savetxt( name+'.tdm.txt', self.trans[self.subsamples])
         np.savetxt(name+'.pdf.txt', np.vstack((self.grid, intensity)).T)
-        self.save_pdf(pdf=intensity, fname=name+'.pdf', markers=True)
+        self.save_pdf(pdf=intensity, fname=name+'.pdf', markers=True, xlim=self.xlim, ylim=self.ylim)
 
     def reduce_geoms(self):
         """Central function calling representative sample optimization based on user inputs."""
@@ -639,14 +642,20 @@ class GeomReduction:
             print('Extensive search = global minimum:')
             self.process_results(divs, subsamples, sweights, suffix='ext.')
 
-    def save_pdf(self, pdf, fname, markers=False, plot=False, ext='png', dpi=72):
+    def save_pdf(self, pdf, fname, markers=False, plot=False, xlim=False, ylim=False, ext='png', dpi=72):
         """Saves PDF as an image."""
-
         samples = self.subsamples
         if not plot:
             plt.ioff()
         plt.figure()
-        plt.xlim([self.exc_min, self.exc_max])
+        if xlim and ylim:
+            x1, x2 = 6,8
+            y1, y2 = 0,3
+            print(x1,x2,y1,y2)
+            plt.xlim([x1, x2])
+        else:
+            plt.xlim([self.exc_min, self.exc_max])
+
         plt.xlabel('$\mathit{E}$/eV')
         if self.dim1:
             if markers:
@@ -656,9 +665,14 @@ class GeomReduction:
         else:
             Z = np.reshape(pdf.T, (self.n_points,self.n_points))
             plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r, extent=[self.exc_min, self.exc_max, self.trans_min, self.trans_max], aspect='auto')
+#[6,8,0,3], aspect='auto') 
+#[self.exc_min, self.exc_max, self.trans_min, self.trans_max], aspect='auto')
             if markers:
                 plt.plot(self.exc[samples].ravel(), self.trans[samples].ravel(), 'k.', markersize=2)
-            plt.ylim([self.trans_min, self.trans_max])
+            if ylim:
+                plt.ylim([y1,y2])
+            else:
+                plt.ylim([self.trans_min,self.trans_max])
             plt.ylabel('$\mathit{\mu}^2$/a.u.')
         plt.savefig(fname+'.'+ext, bbox_inches='tight', dpi=dpi)
         if plot:
@@ -672,7 +686,7 @@ class GeomReduction:
         indexstr = ''
         if index is not None:
             indexstr = '.' + str(index)
-        outfile = self.outdir+self.get_name() + str(self.cycles) + "." + str(self.njobs) + '.geoms.txt'
+        outfile = self.outdir+self.get_name() + "."  + str(self.cycles) + "." + str(self.njobs) + '.geoms.txt'
         
         directory = os.path.dirname(outfile)
     
@@ -699,9 +713,11 @@ if __name__ == "__main__":
     print("Number of CPUs on this machine:", cpu_count())
 
     geomReduction = GeomReduction(options.nsamples, options.nstates, options.subset, options.cycles, options.ncores,
-                                  options.njobs, options.weighted, options.pdfcomp, options.intweights, options.verbose, options.outdir)
+                                  options.njobs, options.weighted, options.pdfcomp, options.intweights, options.verbose, options.outdir, options.xlim, options.ylim)
     geomReduction.read_data(options.infile)
     geomReduction.reduce_geoms()
     
     #if options.verbose:
     print('INFO: wall time', round(time.time()-start_time), 's')
+
+

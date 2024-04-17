@@ -19,42 +19,19 @@ spin=1               # molecular spin
 
 # Check the value of the method variable
 if [ "$method" -eq 0 ]; then
-    QC_method="! RKS CAM-B3LYP 6-31G"
-elif [ "$method" -eq 1 ]; then
-    QC_method="! RKS CAM-B3LYP cc-pVDZ"
-elif [ "$method" -eq 2 ]; then
-    QC_method="! RHF STEOM-CCSD aug-cc-pVDZ " # HF 
-elif [ "$method" -eq 3 ]; then
-    QC_method="! RHF aug-cc-pVDZ def2-SVP/C "
-elif [ "$method" -eq 4 ]; then
-QC_method="! HF-3c"
-elif [ "$method" -eq 5 ]; then
-    QC_method="! RHF aug-cc-pVDZ RI-MP2 Opt"
+    QC_method="! B3LYP 6-311G*"
+else
+    QC_method="! HF-3c"
 fi
 
-# Start writing to the output file
-echo "$QC_method" > $output
+echo "$QC_method" >> $output  
 echo "!TightSCF" >> $output
 echo "%scf" >> $output
 echo " MaxIter 500" >> $output
 echo "end" >> $output
 
-# Choose the section to write based on the method variable
-if [ "$method" -ne 2 ]; then
-    echo "%tddft" >> $output
-    echo " NRoots $nstates" >> $output
-elif [ "$method" -eq 5 ]; then
-    echo "%method" >> $output
-    echo "  ADC(2)" >> $output
-    echo "end" >> $output
-    echo "%mp2" >> $output
-    echo "  RI on" >> $output
-    echo "end" >> $output
-else
-    echo "%MDCI" >> $output
-    echo " nroots $nstates" >> $output
-fi
-
+echo "%tddft" >> $output
+echo " NRoots $nstates" >> $output
 echo "end" >> $output
 
 # Number of processors is determined automatically

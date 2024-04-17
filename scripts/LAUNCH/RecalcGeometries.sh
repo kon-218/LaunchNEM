@@ -7,11 +7,10 @@
 
 # Check if the correct number of arguments are provided
 if [ "$#" -lt 11 ]; then
-    echo "Usage: ./RecalcGeometries.sh name path imin imax movie program jobs nproc"
+    echo "Usage: ./RecalcGeometries.sh name path imin imax movie program jobs nproc calcpath nstates method (indicies)"
     exit 1
 fi
 
-# echo $(pwd)
 ##### SETUP - basic options ######################################
 name=$1      # name of the job
 path=$2     # path to the job
@@ -41,7 +40,7 @@ if [[ ! -f $movie ]] || [[ ! -r $movie ]];then
    echo "ERROR: File \"$movie\" is not readable."
    exit 1
 fi
-echo "Init $nstates"
+
 natom=$(head -1 $movie | awk '{print $1}' )  # number of atoms
 let natom2=natom+2
 
@@ -71,7 +70,6 @@ fi
 
 let nsample=${#samples[@]}
 echo "Processing $nsample samples and generating $jobs job(s)..."
-#echo $samples
 
 if [[ $jobs -gt $nsample ]];then
    echo "WARNING: Number of jobs is bigger than number of samples."
@@ -93,7 +91,6 @@ fi
 rm -f $rname.*
 ##################################################################
 # CREATE INPUTS
-# echo "Before input $nstates"
 j=1
 for i in "${samples[@]}"
 do

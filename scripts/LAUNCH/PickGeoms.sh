@@ -120,7 +120,7 @@ fi
 rm -f $output
 
 
-# Here we go....
+# Picking geometries
 offset=0
 for ((i=1;i<=nsample;i++)) {
 
