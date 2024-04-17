@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# A script for extracting the representative sampling geometries from the original ensemble
+
 echo $(pwd)
 workdir=../PROCESS/
 outdir=../../mol/Spectrum_data/Spectrum_out/
