@@ -23,4 +23,5 @@ Requirements:
 Scripts from https://github.com/PHOTOX/photoxrepo, https://github.com/stepan-srsen/PyNEAppLES have been used in this repository
 
 # mol 
-Directory for calculation outputs, subdirectories are initialised by the runscript
+The mol directory is initialised by the programme in the LaunchNEM directory, with seperate mol directories created for each seperate run. 
+All of the spectrum data, ORCA files and geometry data is found here after the program has been run.
