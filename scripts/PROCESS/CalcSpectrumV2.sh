@@ -27,9 +27,9 @@ ncores=$9	# number of cores used for parallel execution of computationally inten
 # other parameters
 workdir=${10} #../PROCESS/	# working directory for the spectrum calculation
 outdir=${11} #../../mol/Spectrum_data/Spectrum_out/	# output directory for the spectrum calculation
-verbose=true
+verbose=${13}
 sigmaalg=${12} 
-ebars=${13}
+ebars=${14}
 
 nlines=$(wc -l < $input)
 nlines2=$((samples * states))
